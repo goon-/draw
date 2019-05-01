@@ -1,11 +1,11 @@
-class DrawingAreaOperation {
+class DrawingPrimitive {
     constructor(type, params) {
         this.type = type;
         this.params = params;
     }
 
-    apply(virtualCanvas) {
+    apply(renderer) {
     }
 }
 
-export default DrawingAreaOperation;
+export default DrawingPrimitive;

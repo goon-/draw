@@ -4,66 +4,110 @@ import React from "react";
 class DrawingArea extends React.Component {
     constructor(props) {
         super(props);
-        this.canvas = React.createRef();
-        this.handleClick = this.handleClick.bind(this);
+        this.canvasRef = React.createRef();
+        this.handleMouseDown = this.handleMouseDown.bind(this);
+        this.handleMouseUp = this.handleMouseUp.bind(this);
+        this.handleMouseMove = this.handleMouseMove.bind(this);
     }
 
     componentDidMount() {
-        this.imageData = this.canvas.current.getContext('2d').createImageData(this.canvas.current.width, this.canvas.current.height);
-        this.props.operations && this.props.operations.forEach(op => op.apply(this.props.virtualCanvas));
-        this.updateCanvas();
-    }
-
-    shouldComponentUpdate(nextProps, nextState, nextContext) {
-        return nextProps.operations !== this.props.operations;
+        this.canvas = this.canvasRef.current;
+        this.ctx = this.canvas.getContext('2d');
+        this.props.operations && this.props.operations.forEach(op => op.apply(this));
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
+        this.canvas = this.canvasRef.current;
+        this.ctx = this.canvas.getContext('2d');
+
+        const resized = this.canvas.width !== this.canvas.offsetWidth || this.canvas.height !== this.canvas.offsetHeight;
+        if (resized) {
+            this.canvas.width = this.canvas.offsetWidth;
+            this.canvas.height = this.canvas.offsetHeight;
+        }
+
         const isPastOperationModified = prevProps.operations.length > this.props.operations.length ||
             prevProps.operations.some((op, idx) => op !== this.props.operations[idx]);
-        const operationsToApply = isPastOperationModified
+        const operationsToApply = isPastOperationModified || resized
             ? this.props.operations
             : this.props.operations.slice(prevProps.operations.length);
 
         if (operationsToApply.length > 0) {
-            operationsToApply.forEach(op => op.apply(this.props.virtualCanvas));
-            this.updateCanvas();
+            operationsToApply.forEach(op => op.apply(this));
         }
     }
 
-    updateCanvas() {
-        let vCanvasOffset = this.props.virtualCanvasOffset;
-        let canvasWidth = this.canvas.current.width;
-        let canvasHeight = this.canvas.current.height;
-        const endX = Math.min(vCanvasOffset.x + canvasWidth, this.props.virtualCanvas.width);
-        const endY = Math.min(vCanvasOffset.y + canvasHeight, this.props.virtualCanvas.height);
-        for (let vCanvasY = vCanvasOffset.y, y = 0; vCanvasY < endY; vCanvasY++, y++) {
-            for (let vCanvasX = vCanvasOffset.x, imgDataOffset = (canvasHeight - y - 1) * canvasWidth * 4; vCanvasX < endX; vCanvasX++, imgDataOffset += 4) {
-                const color = this.props.virtualCanvas.data[vCanvasX + vCanvasY * this.props.virtualCanvas.width];
-                this.imageData.data[imgDataOffset] = color.r;
-                this.imageData.data[imgDataOffset + 1] = color.g;
-                this.imageData.data[imgDataOffset + 2] = color.b;
-                this.imageData.data[imgDataOffset + 3] = color.a;
-            }
+    handleMouseDown(e) {
+        if (this.props.onMouseDown) {
+            const {worldX, worldY} = this.toWorldCoord(e.clientX, e.clientY);
+            this.props.onMouseDown(worldX, worldY, e.button);
         }
-        const ctx = this.canvas.current.getContext('2d');
-        ctx.putImageData(this.imageData, 0, 0);
     }
 
-    handleClick(e) {
-        // console.log(e.clientX, e.clientY);
-        // const boundingClientRect = this.canvas.current.getBoundingClientRect();
-        // console.log(boundingClientRect);
-        // console.log(e.clientX - boundingClientRect.x, e.clientY - boundingClientRect.y);
-        // console.log(e.clientX - boundingClientRect.x, boundingClientRect.height - (e.clientY - boundingClientRect.y));
-        if (this.props.onClick) {
-            const boundingClientRect = this.canvas.current.getBoundingClientRect();
-            this.props.onClick(e.clientX - boundingClientRect.x, boundingClientRect.height - (e.clientY - boundingClientRect.y));
+    handleMouseUp(e) {
+        if (this.props.onMouseUp) {
+            const {worldX, worldY} = this.toWorldCoord(e.clientX, e.clientY);
+            this.props.onMouseUp(worldX, worldY, e.button);
+        }
+    }
+
+    handleMouseMove(e) {
+        if (this.props.onMouseMove) {
+            const {worldX, worldY} = this.toWorldCoord(e.clientX, e.clientY);
+            this.props.onMouseMove(e.movementX, -e.movementY, worldX, worldY);
         }
     }
 
     render() {
-        return <canvas ref={this.canvas} width={this.props.canvasWidth} height={this.props.canvasHeight} onMouseDown={this.handleClick} className="drawing-area-canvas" style={{border: 'solid 1px'}}></canvas>;
+        return <div className="drawing-area-canvas">
+            <canvas
+                ref={this.canvasRef}
+                onMouseDown={this.handleMouseDown}
+                onMouseUp={this.handleMouseUp}
+                onMouseMove={this.handleMouseMove}
+                style={{width: '100%', height: '100%'}}
+            />
+        </div>;
+    }
+
+    setPixel(x, y, color) {
+        const {canvasX, canvasY} = this.toCanvasCoord(x, y);
+        const imageData = this.ctx.createImageData(1, 1);
+        imageData.data[0] = color.r;
+        imageData.data[1] = color.g;
+        imageData.data[2] = color.b;
+        imageData.data[3] = color.a;
+        this.ctx.putImageData(imageData, canvasX, canvasY);
+    }
+
+    line(x1, y1, x2, y2, color) {
+        const start = this.toCanvasCoord(x1, y1);
+        const end = this.toCanvasCoord(x2, y2);
+        this.ctx.strokeStyle = this.getStyle(color);
+        this.ctx.beginPath();
+        this.ctx.moveTo(start.canvasX, start.canvasY);
+        this.ctx.lineTo(end.canvasX, end.canvasY);
+        this.ctx.stroke();
+    }
+
+    toCanvasCoord(x, y) {
+        return {
+            canvasX: x - this.props.offset.x,
+            canvasY: this.canvas.height - (y - this.props.offset.y)
+        };
+    }
+
+    toWorldCoord(x, y) {
+        // TODO: move to componentDidUpdate?
+        const boundingClientRect = this.canvas.getBoundingClientRect();
+        return {
+            worldX: x - boundingClientRect.x + this.props.offset.x,
+            worldY: boundingClientRect.height - (y - boundingClientRect.y) + this.props.offset.y,
+        };
+    }
+
+    getStyle(color) {
+        return `rgba(${color.r},${color.g},${color.b},${color.a})`;
     }
 }
 

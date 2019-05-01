@@ -1,63 +1,68 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import './styles/App.css';
 import DrawingArea from "./components/DrawingArea";
-import DrawingAreaOperation from "./model/DrawingAreaOperation";
-import VirtualCanvas from "./model/VirtualCanvas";
-import SetPixel from "./model/SetPixel";
+import Pixel from "./model/drawing_primitives/Pixel";
 import Color from "./model/Color";
+import Line from "./model/drawing_primitives/Line";
 
-const vCanvasBottomLeft = {x: -100, y: -100};
+const drawingAreaOffset = {x: 0, y: 0};
 
 class App extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            operations: []
+            operations: [],
+            isLmbPressed: false
         };
-        this.onCanvasClick = this.onCanvasClick.bind(this);
+        this.onDrawingAreaMouseDown = this.onDrawingAreaMouseDown.bind(this);
+        this.onDrawingAreaMouseUp = this.onDrawingAreaMouseUp.bind(this);
+        this.onDrawingAreaMouseMove = this.onDrawingAreaMouseMove.bind(this);
     }
 
-    onCanvasClick(vCanvasX, vCanvasY) {
+    onDrawingAreaMouseDown(x, y, button) {
         this.setState(state => {
-            const opCopy = state.operations.slice();
-            opCopy.push(new SetPixel(vCanvasX + vCanvasBottomLeft.x, vCanvasY + vCanvasBottomLeft.y, new Color(255, 0, 0, 255)));
-            return {operations: opCopy};
+            return {
+                operations: [].concat(state.operations).concat([new Pixel(x, y, new Color(255, 0, 0, 255))]),
+                // TODO move button codes to abstract constants
+                isLmbPressed: button === 0
+            };
+        });
+    }
+
+    onDrawingAreaMouseUp(x, y, button) {
+        this.setState(state => {
+            // TODO move button codes to abstract constants
+            if (button === 0) {
+                return {
+                    isLmbPressed: false
+                };
+            }
+            return state;
+        });
+    }
+
+    onDrawingAreaMouseMove(dx, dy, newX, newY) {
+        this.setState(state => {
+            if (state.isLmbPressed) {
+                return {
+                    operations: [].concat(state.operations).concat([new Line(newX - dx, newY - dy, newX, newY, new Color(255, 0, 0, 255))]),
+                };
+            }
         });
     }
 
     render() {
         return (
             <div className="App">
-                {/*<header className="App-header">*/}
-                {/*  <img src={logo} className="App-logo" alt="logo" />*/}
-                {/*  <p>*/}
-                {/*    Edit <code>src/App.js</code> and save to reload.*/}
-                {/*  </p>*/}
-                {/*  <a*/}
-                {/*    className="App-link"*/}
-                {/*    href="https://reactjs.org"*/}
-                {/*    target="_blank"*/}
-                {/*    rel="noopener noreferrer"*/}
-                {/*  >*/}
-                {/*    Learn React*/}
-                {/*  </a>*/}
-                {/*</header>*/}
-                <DrawingArea
-                    virtualCanvasOffset={{x: 0, y: 0}}
-                    virtualCanvas={new VirtualCanvas(vCanvasBottomLeft, 100, 100)}
-                    canvasWidth={200}
-                    canvasHeight={200}
-                    onClick={this.onCanvasClick}
-                    // operations={[
-                    //     new SetPixel(0, 0, new Color(255, 0, 0, 255)),
-                    //     new SetPixel(-100, -100, new Color(255, 0, 0, 255)),
-                    //     // new SetPixel(-100, 99, new Color(255, 0, 0, 255)),
-                    //     // new SetPixel(99, 99, new Color(255, 0, 0, 255)),
-                    //     new SetPixel(99, -100, new Color(255, 0, 0, 255)),
-                    // ]}
-                    operations={this.state.operations}
-                />
+                <div className={'drawing-area-container'}>
+                    <DrawingArea
+                        offset={drawingAreaOffset}
+                        onMouseDown={this.onDrawingAreaMouseDown}
+                        onMouseUp={this.onDrawingAreaMouseUp}
+                        onMouseMove={this.onDrawingAreaMouseMove}
+                        operations={this.state.operations}
+                    />
+                </div>
             </div>
         );
     }
