@@ -14,6 +14,7 @@ class App extends React.Component {
             operations: [],
             isLmbPressed: false
         };
+        this.onMouseLeaveDrawingArea = this.onMouseLeaveDrawingArea.bind(this);
         this.onDrawingAreaMouseDown = this.onDrawingAreaMouseDown.bind(this);
         this.onDrawingAreaMouseUp = this.onDrawingAreaMouseUp.bind(this);
         this.onDrawingAreaMouseMove = this.onDrawingAreaMouseMove.bind(this);
@@ -41,6 +42,10 @@ class App extends React.Component {
         });
     }
 
+    onMouseLeaveDrawingArea() {
+        this.setState({isLmbPressed: false}) // Always false for now
+    }
+
     onDrawingAreaMouseMove(dx, dy, newX, newY) {
         this.setState(state => {
             if (state.isLmbPressed) {
@@ -54,7 +59,9 @@ class App extends React.Component {
     render() {
         return (
             <div className="App">
-                <div className={'drawing-area-container'}>
+                <div className={'drawing-area-container'}
+                    onMouseLeave={this.onMouseLeaveDrawingArea}
+                >
                     <DrawingArea
                         offset={drawingAreaOffset}
                         onMouseDown={this.onDrawingAreaMouseDown}
