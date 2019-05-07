@@ -8,6 +8,8 @@ class DrawingArea extends React.Component {
         this.handleMouseDown = this.handleMouseDown.bind(this);
         this.handleMouseUp = this.handleMouseUp.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
+        this.handleMouseLeave = this.handleMouseLeave.bind(this);
+        this.handleMouseEnter = this.handleMouseEnter.bind(this);
     }
 
     componentDidMount() {
@@ -58,6 +60,20 @@ class DrawingArea extends React.Component {
         }
     }
 
+    handleMouseLeave(e) {
+        if (this.props.onMouseLeave) {
+            const {worldX, worldY} = this.toWorldCoord(e.clientX, e.clientY);
+            this.props.onMouseLeave(worldX, worldY);
+        }
+    }
+
+    handleMouseEnter(e) {
+        if (this.props.onMouseEnter) {
+            const {worldX, worldY} = this.toWorldCoord(e.clientX, e.clientY);
+            this.props.onMouseEnter(worldX, worldY, e.button, e.buttons);
+        }
+    }
+
     render() {
         return <div className="drawing-area-canvas">
             <canvas
@@ -65,6 +81,8 @@ class DrawingArea extends React.Component {
                 onMouseDown={this.handleMouseDown}
                 onMouseUp={this.handleMouseUp}
                 onMouseMove={this.handleMouseMove}
+                onMouseLeave={this.handleMouseLeave}
+                onMouseEnter={this.handleMouseEnter}
                 style={{width: '100%', height: '100%'}}
             />
         </div>;
